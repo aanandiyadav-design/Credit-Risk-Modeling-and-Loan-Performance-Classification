@@ -2,89 +2,48 @@
 
 ## Key Results
 
-- Decision trees outperformed logistic regression in capturing non-linear risk patterns  
-- Model performance was stable across cross-validation and holdout evaluation  
-- Risk signals were concentrated in a small number of financial and repayment-related features  
-- Simple additive engagement-style metrics were insufficient for explaining default behavior without feature-level context  
+- Non-linear models (decision tree, random forest) captured borrower risk structure more effectively than logistic regression, indicating the presence of interaction effects and threshold-based relationships in the feature space  
+- Model performance remained stable between cross-validation and holdout evaluation, suggesting limited overfitting and consistent generalization within the dataset  
+- Predictive signal was highly concentrated in a small subset of financial and repayment-related variables, rather than distributed across features  
+- Evaluation metrics (ROC vs Precision-Recall) highlighted the importance of assessing performance beyond accuracy, particularly in an imbalanced classification setting  
+- Strong model performance was partly driven by high-signal variables tied to repayment outcomes, highlighting potential data leakage if applied in a real-world underwriting setting  
 
 ---
 
-## Overview
+## Approach
 
-This project builds a credit risk classification workflow in R to distinguish between higher-risk and lower-risk loans using historical lending data. The focus was on model performance, understanding how different modeling approaches capture borrower risk and how evaluation choices impact reliability.
+The objective was to classify loan outcomes using historical lending data and evaluate how different modeling approaches capture borrower risk. The dataset combined numeric and categorical financial variables along with operational fields that required removal before modeling.
 
----
+Preprocessing involved dropping low-signal and non-generalizable columns, converting categorical variables to factors, and applying centering and scaling to numeric features. Consistency across training and validation splits was critical, particularly for factor levels and scaling parameters, to avoid instability in model behavior.
 
-## Data Preprocessing
+Three models were implemented: decision tree (CART), logistic regression, and random forest. Logistic regression provided a linear baseline but failed to capture interaction effects between borrower attributes. Decision trees modeled non-linear splits directly and produced interpretable decision rules. Random forest introduced additional flexibility through ensembling, but did not materially improve interpretability.
 
-The dataset contained a mix of numeric and categorical financial variables, along with several low-signal and redundant fields.
-
-- Removed non-informative and operational columns (IDs, URLs, policy flags)  
-- Dropped variables with low variance or limited interpretability  
-- Converted categorical variables to factors with consistent levels across splits  
-- Applied centering and scaling to numeric features to stabilize model behavior  
-- Removed missing values to ensure consistent training and evaluation  
-
-One key challenge was ensuring that preprocessing steps were applied consistently across training and validation splits, particularly for factor levels and scaling parameters.
+Model evaluation was structured using 4-fold cross-validation on the working dataset, with a separate holdout set reserved for final testing. Cross-validation alone would overstate performance stability; separating the holdout set provided a more reliable estimate of generalization.
 
 ---
 
-## Modeling Approach
+## Insights & Limitations
 
-Three models were implemented and compared:
+Predictive performance was driven by a limited number of high-signal variables, particularly those related to repayment behavior and credit quality. Default risk was not evenly distributed across features, and model performance depended on isolating these concentrated signals.
 
-- **Decision Tree (CART)**  
-  - Controlled depth to avoid overfitting  
-  - Provided interpretable splits and feature importance  
+Several high-importance variables were tied to post-origination repayment outcomes. These variables would not be available at the time of loan approval, introducing a clear data leakage risk in a production setting. Model performance in this project therefore reflects classification of historical outcomes rather than a deployable underwriting model.
 
-- **Logistic Regression**  
-  - Served as a linear baseline  
-  - Limited in capturing non-linear interactions between borrower attributes  
+The modeling approach applies uniform treatment across variables and thresholds, which simplifies the problem but does not fully capture the differing impact of individual financial features.
 
-- **Random Forest**  
-  - Introduced non-linearity and ensemble averaging  
-  - Used to compare performance against simpler interpretable models  
-
-A 4-fold cross-validation framework was used on the working dataset, with a separate holdout set reserved for final evaluation.
+Model selection reflects a tradeoff between flexibility and interpretability. Non-linear models improved predictive performance, while the decision tree provided clearer structure for understanding how risk is separated into actionable rules.
 
 ---
 
-## Evaluation
+## Outputs
 
-Model performance was evaluated using:
+**Decision Tree (CART Model)**  
+![Decision Tree](outputs/tree_plot.png)
 
-- Accuracy  
-- Confusion matrix metrics  
-- Cross-validation consistency  
-- Holdout set performance  
+**ROC Curve**  
+![ROC Curve](outputs/roc_curve.png)
 
-Separating cross-validation from holdout evaluation was important to avoid optimistic performance estimates and to assess generalization more reliably.
-
----
-
-## Key Insights
-
-- **Model choice matters:**  
-  Decision trees captured non-linear interactions in borrower risk that logistic regression failed to represent effectively  
-
-- **Activity vs risk signal:**  
-  Features tied to repayment behavior and financial status were significantly more predictive than simple activity-based metrics  
-
-- **Interpretability vs performance:**  
-  While random forest improved flexibility, the decision tree provided clearer insight into how risk decisions are made  
-
-- **Evaluation design matters:**  
-  Without a proper holdout set, cross-validation alone would overstate performance stability  
-
----
-
-## Limitations
-
-- Several high-importance features are related to repayment outcomes, which may not be available at loan origination (potential data leakage if used in production settings)  
-- Additive modeling assumptions (e.g., equal weighting of engagement-style metrics) oversimplify how different variables contribute to risk  
-- Class imbalance and threshold selection were not explicitly optimized
-
----
+**Precision-Recall Curve**  
+![PR Curve](outputs/pr_curve.png)
 
 ## Notes
 
