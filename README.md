@@ -2,12 +2,12 @@
 
 ## Key Results
 
-- Non-linear models (decision tree, random forest) captured non-linear risk structure in borrower features more effectively than logistic regression, indicating the presence of interaction effects and threshold-based relationships in the feature space  
-- Performance remained stable between cross-validation and holdout evaluation, suggesting limited overfitting and consistent generalization within the dataset  
-- Predictive signal was highly concentrated in a small subset of financial and repayment-related variables, rather than distributed across features  
-- Evaluation metrics (ROC vs Precision-Recall) highlighted the importance of assessing performance beyond accuracy, particularly in an imbalanced classification setting  
-- Strong model performance was partly driven by high-signal variables tied to repayment outcomes, highlighting potential data leakage if applied in a real-world underwriting setting  
-
+- Tree-based models (decision tree, random forest) outperformed logistic regression, indicating that borrower risk is driven by non-linear patterns that linear models fail to capture  
+- Performance was consistent across cross-validation and holdout evaluation, with no observable degradation, indicating stable generalization  
+- Predictive signal was concentrated in a small subset of financial and repayment-related variables, with most features contributing limited incremental explanatory value  
+- ROC and Precision-Recall evaluation showed that accuracy was not an adequate metric under class imbalance and asymmetric error costs  
+- A substantial portion of predictive power was driven by variables tied to repayment outcomes, introducing data leakage and limiting applicability in a forward-looking underwriting setting
+  
 ---
 
 ## Approach
