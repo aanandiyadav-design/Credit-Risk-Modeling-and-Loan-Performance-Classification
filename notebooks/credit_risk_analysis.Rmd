@@ -1,1 +1,112 @@
+# Function to check and install missing packages
+install_if_missing <- function(pkg) {
+  if (!requireNamespace(pkg, quietly = TRUE)) {
+    install.packages(pkg, dependencies=TRUE, repos="http://cran.rstudio.com/")
+  }
+  library(pkg, character.only = TRUE)
+}
+
+# Install and load necessary packages
+install_if_missing("rpart")
+install_if_missing("rpart.plot")
+install_if_missing("pROC")
+install_if_missing("caret")
+install_if_missing("dplyr")
+install_if_missing("e1071")  # Required dependency for caret
+install_if_missing("fastDummies")  # Required for one-hot encoding
+install_if_missing("ggplot2")  # For visualization
+install_if_missing("gridExtra")  # For multiple plots
+install_if_missing("MLmetrics")
+library(MLmetrics)  # For additional evaluation metrics
+install_if_missing("glmnet")  # For LASSO regression
+
+# Special handling for randomForest
+if (!requireNamespace("randomForest", quietly = TRUE)) {
+  install.packages("randomForest", dependencies=TRUE, type="binary", repos="http://cran.rstudio.com/")
+}
+library(randomForest)
+
+# Load dataset
+data <- read.csv("small_lending_club_clean.csv")
+data$loan_status <- as.factor(data$loan_status)
+
+# Exploratory Data Analysis (EDA)
+ggplot(data, aes(x=loan_status)) + geom_bar(fill="blue") + theme_minimal() + ggtitle("Distribution of Loan Status")
+ggplot(data, aes(x=int_rate)) + geom_histogram(fill="red", bins=30) + theme_minimal() + ggtitle("Interest Rate Distribution")
+
+# Data Preprocessing
+columns_to_drop <- c("id", "pymnt_plan", "url", "zip_code", "initial_list_status", "policy_code", "application_type", "acc_now_delinq", "delinq_amnt")
+data <- data %>% select(-all_of(columns_to_drop))
+data <- na.omit(data)  # Remove missing values
+
+# Split data into training, validation, and holdout sets
+set.seed(123)
+num_rows <- nrow(data)
+rows_to_move <- sample(1:num_rows, size = ceiling(0.2 * num_rows))
+
+holdout_set <- data[rows_to_move, ]   # 20% for final evaluation
+work_set <- data[-rows_to_move, ]      # Remaining 80% for training & validation
+
+# Implement 4-Fold Cross-Validation
+k <- 4
+row_indices <- sample(1:nrow(work_set))
+folds <- cut(1:nrow(work_set), breaks = k, labels = FALSE)
+
+fold_accuracy <- numeric(k)
+
+for(i in 1:k) {
+  test_indices <- row_indices[folds == i]
+  train_data <- work_set[-test_indices, ]
+  test_data <- work_set[test_indices, ]
+
+  # Convert categorical variables properly
+  for (col in names(train_data)) {
+    if (is.character(train_data[[col]]) || is.logical(train_data[[col]])) {
+      train_data[[col]] <- as.factor(train_data[[col]])
+      test_data[[col]] <- factor(test_data[[col]], levels = levels(train_data[[col]]))
+    }
+  }
+  
+  # Ensure numeric scaling
+  numeric_cols <- names(train_data)[sapply(train_data, is.numeric)]
+  numeric_cols <- numeric_cols[sapply(train_data[numeric_cols], function(x) var(x, na.rm=TRUE) > 0)]
+  preprocess_params <- preProcess(train_data[numeric_cols], method = c("center", "scale"))
+  train_data[numeric_cols] <- predict(preprocess_params, train_data[numeric_cols])
+  test_data[numeric_cols] <- predict(preprocess_params, test_data[numeric_cols])
+
+  # Train models
+  cart_model <- rpart(loan_status ~ ., data = train_data, maxdepth = 4)
+  log_model <- train(loan_status ~ ., data = train_data, method = "glm", family = binomial)
+  rf_model <- randomForest(loan_status ~ ., data = train_data, ntree = 100)
+
+  # Make predictions
+  cart_pred <- predict(cart_model, newdata = test_data, type = "class")
+  log_pred <- predict(log_model, newdata = test_data)
+  rf_pred <- predict(rf_model, newdata = test_data)
+
+  # Convert Logistic Regression Predictions
+  log_pred <- as.factor(ifelse(log_pred > 0.5, "Charged Off", "Fully Paid"))
+  
+  # Compute Accuracy
+  cart_acc <- confusionMatrix(cart_pred, test_data$loan_status)$overall["Accuracy"]
+  log_acc <- confusionMatrix(log_pred, test_data$loan_status)$overall["Accuracy"]
+  rf_acc <- confusionMatrix(rf_pred, test_data$loan_status)$overall["Accuracy"]
+
+  cat("Fold", i, "- CART Accuracy:", cart_acc, "| Logistic Accuracy:", log_acc, "| Random Forest Accuracy:", rf_acc, "\n")
+  flush.console()
+  fold_accuracy[i] <- mean(c(cart_acc, log_acc, rf_acc))
+}
+
+# Compute average Accuracy
+mean_accuracy <- mean(fold_accuracy)
+cat("Average 4-Fold Accuracy:", mean_accuracy, "\n")
+
+# Final Model Evaluation on Holdout Set
+best_model <- rpart(loan_status ~ ., data = work_set, maxdepth = 4)
+predicted_holdout <- predict(best_model, newdata = holdout_set, type = "class")
+holdout_cm <- confusionMatrix(predicted_holdout, holdout_set$loan_status)
+holdout_accuracy <- holdout_cm$overall["Accuracy"]
+
+cat("Holdout Set Accuracy:", holdout_accuracy, "\n")
+print(holdout_cm)
 
